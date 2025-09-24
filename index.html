@@ -126,6 +126,11 @@
       <div class="loading-spinner"></div>
       <p>Initializing augmented reality experience...</p>
       <p><small>Please allow camera access when prompted</small></p>
+      <div id="debugInfo" style="margin-top: 20px; font-size: 10px; opacity: 0.7;">
+        <div>Browser: <span id="browserInfo"></span></div>
+        <div>HTTPS: <span id="httpsInfo"></span></div>
+        <div>Camera API: <span id="cameraAPI"></span></div>
+      </div>
     </div>
     
     <!-- AR Status Indicator -->
@@ -152,16 +157,44 @@
   const arStatus = document.getElementById("arStatus");
   const instructions = document.getElementById("instructions");
   
+  // Debug information
+  document.getElementById('browserInfo').textContent = navigator.userAgent.split(' ').pop();
+  document.getElementById('httpsInfo').textContent = location.protocol === 'https:' ? '✅' : '❌';
+  document.getElementById('cameraAPI').textContent = navigator.mediaDevices ? '✅' : '❌';
+  
+  // Check if we're in a supported environment
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    loadingOverlay.innerHTML = `
+      <h1>⚠️ Unsupported Browser</h1>
+      <p>Your browser doesn't support camera access</p>
+      <p><small>Please use Chrome, Firefox, or Safari on mobile</small></p>
+    `;
+    return;
+  }
+  
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    loadingOverlay.innerHTML = `
+      <h1>⚠️ HTTPS Required</h1>
+      <p>Camera access requires a secure connection</p>
+      <p><small>Please ensure you're using HTTPS</small></p>
+    `;
+    return;
+  }
+  
   // Initialize MindAR
   console.log("Initializing MindAR...");
   
   const mindarThree = new MindARThree({
     container,
-    imageTargetSrc: "./targets.mind", // You'll need to generate this from your newspaper image
+    imageTargetSrc: "./targets.mind",
     filterMinCF: 0.0001, 
     filterBeta: 0.01,
     warmupTolerance: 5,
-    missTolerance: 5
+    missTolerance: 5,
+    // Add these options for better compatibility
+    maxTrack: 1,
+    showStats: false,
+    showInfo: false
   });
 
   const { renderer, scene, camera } = mindarThree;
@@ -186,11 +219,16 @@
   
   // Enhanced Background Video with Cosmic Border
   const video = document.createElement("video");
-  video.src = "./cosmic.mp4"; // You'll need this video file
+  video.src = "./cosmic.mp4";
   video.playsInline = true;
   video.loop = true;
   video.muted = true;
   video.crossOrigin = "anonymous";
+  
+  // Add error handling for video
+  video.onerror = (e) => {
+    console.warn("Video failed to load:", e);
+  };
 
   const videoTex = new THREE.VideoTexture(video);
   videoTex.minFilter = THREE.LinearFilter;
@@ -461,35 +499,77 @@
     requestAnimationFrame(tick);
   };
 
-  // Start the experience
-  try {
-    console.log("Starting MindAR...");
-    await mindarThree.start();
-    
-    // Hide loading overlay
-    loadingOverlay.style.opacity = "0";
-    setTimeout(() => {
-      loadingOverlay.style.display = "none";
-    }, 500);
-    
-    // Start render loop
-    renderer.setAnimationLoop(() => {
-      renderer.render(scene, camera);
-    });
-    
-    // Start animation loop
-    tick();
-    
-    console.log("✅ MindAR initialized successfully!");
-    
-  } catch (error) {
-    console.error("❌ Failed to initialize MindAR:", error);
-    loadingOverlay.innerHTML = `
-      <h1>⚠️ AR Error</h1>
-      <p>Failed to initialize AR experience</p>
-      <p><small>${error.message}</small></p>
-    `;
+  // Start the experience with better error handling
+  async function initializeAR() {
+    try {
+      console.log("Starting MindAR...");
+      
+      // Update loading message
+      loadingOverlay.querySelector('p').textContent = "Requesting camera access...";
+      
+      // Start MindAR with timeout
+      const startPromise = mindarThree.start();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Camera initialization timeout')), 15000)
+      );
+      
+      await Promise.race([startPromise, timeoutPromise]);
+      
+      // Hide loading overlay
+      loadingOverlay.style.opacity = "0";
+      setTimeout(() => {
+        loadingOverlay.style.display = "none";
+      }, 500);
+      
+      // Start render loop
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
+      });
+      
+      // Start animation loop
+      tick();
+      
+      console.log("✅ MindAR initialized successfully!");
+      
+    } catch (error) {
+      console.error("❌ Failed to initialize MindAR:", error);
+      
+      let errorMessage = "Unknown error occurred";
+      let suggestions = "";
+      
+      if (error.message.includes('timeout')) {
+        errorMessage = "Camera initialization timeout";
+        suggestions = "Try refreshing the page and allow camera access when prompted";
+      } else if (error.message.includes('Permission')) {
+        errorMessage = "Camera permission denied";
+        suggestions = "Please enable camera access in your browser settings and refresh";
+      } else if (error.message.includes('NotFoundError')) {
+        errorMessage = "No camera found";
+        suggestions = "Please ensure your device has a camera";
+      } else if (error.message.includes('targets.mind')) {
+        errorMessage = "Could not load AR target";
+        suggestions = "The targets.mind file may be missing or corrupted";
+      }
+      
+      loadingOverlay.innerHTML = `
+        <h1>⚠️ AR Error</h1>
+        <p>${errorMessage}</p>
+        <p><small>${suggestions}</small></p>
+        <button onclick="location.reload()" style="
+          background: #00d4ff;
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 5px;
+          margin-top: 20px;
+          cursor: pointer;
+        ">Try Again</button>
+      `;
+    }
   }
+  
+  // Initialize with delay to ensure DOM is ready
+  setTimeout(initializeAR, 1000);
 
   // Handle page visibility changes
   document.addEventListener('visibilitychange', () => {
