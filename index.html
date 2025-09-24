@@ -251,10 +251,27 @@
           missTolerance: 5,
           maxTrack: 1,
           showStats: false,
-          showInfo: false
+          showInfo: false,
+          // Ensure video is visible
+          videoSettings: {
+            facingMode: 'environment'
+          }
         });
 
         const { renderer, scene, camera } = mindarThree;
+        
+        // Force the container to be visible and properly sized
+        container.style.display = 'block';
+        container.style.width = '100%';
+        container.style.height = '100%';
+        
+        // Make sure the renderer canvas is visible
+        if (renderer && renderer.domElement) {
+          renderer.domElement.style.display = 'block';
+          renderer.domElement.style.width = '100%';
+          renderer.domElement.style.height = '100%';
+          console.log("✅ Renderer canvas configured");
+        }
         
         // Enhanced Lighting Setup
         scene.add(new THREE.HemisphereLight(0x443366, 0x111122, 0.6));
@@ -721,18 +738,56 @@
           requestAnimationFrame(tick);
         }
 
-        // Start MindAR
+        // Start MindAR with better camera configuration
         console.log("Starting MindAR...");
         loadingOverlay.querySelector('p').textContent = "Requesting camera access...";
         
+        // Add additional timeout for initialization
         const startPromise = mindarThree.start();
         const timeoutPromise = new Promise(function(resolve, reject) {
           setTimeout(function() { 
             reject(new Error('Camera initialization timeout'));
-          }, 15000);
+          }, 20000); // Extended timeout
         });
         
         await Promise.race([startPromise, timeoutPromise]);
+        
+        // Verify video feed is working after start
+        const video = mindarThree.video;
+        if (video) {
+          console.log("✅ Video feed available:", video.videoWidth, "x", video.videoHeight);
+          
+          // Force video to be visible in the DOM
+          video.style.display = 'block';
+          video.style.position = 'absolute';
+          video.style.top = '0';
+          video.style.left = '0';
+          video.style.width = '100%';
+          video.style.height = '100%';
+          video.style.objectFit = 'cover';
+          video.style.zIndex = '1';
+          
+          // Ensure video is playing
+          if (video.paused) {
+            video.play().catch(function(e) {
+              console.log("Video play failed:", e);
+            });
+          }
+        } else {
+          console.warn("❌ No video feed detected");
+        }
+        
+        // Ensure renderer canvas is above video
+        if (renderer && renderer.domElement) {
+          renderer.domElement.style.position = 'absolute';
+          renderer.domElement.style.top = '0';
+          renderer.domElement.style.left = '0';
+          renderer.domElement.style.width = '100%';
+          renderer.domElement.style.height = '100%';
+          renderer.domElement.style.zIndex = '2';
+          renderer.domElement.style.pointerEvents = 'none';
+          console.log("✅ Canvas positioned above video");
+        }
         
         // Hide loading overlay
         loadingOverlay.style.opacity = "0";
@@ -740,15 +795,25 @@
           loadingOverlay.style.display = "none";
         }, 500);
         
-        // Start render loop
+        // Start render loop with error handling
+        let renderCount = 0;
         renderer.setAnimationLoop(function() {
-          renderer.render(scene, camera);
+          try {
+            renderer.render(scene, camera);
+            renderCount++;
+            if (renderCount % 60 === 0) {
+              console.log("Render loop active - frame:", renderCount);
+            }
+          } catch (e) {
+            console.error("Render error:", e);
+          }
         });
         
         // Start animation loop
         tick();
         
         console.log("✅ MindAR initialized successfully!");
+        console.log("Video element:", !!video, "Renderer:", !!renderer, "Scene children:", scene.children.length);
         
       } catch (error) {
         console.error("❌ Failed to initialize MindAR:", error);
