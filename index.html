@@ -565,34 +565,36 @@
           // Make sure all elements are visible and positioned correctly
           anchor.group.visible = true;
           
-          // Add multiple test elements at different positions and sizes to debug
+          // Add multiple test elements at MUCH more forward positions
           const testCube = new THREE.Mesh(
-            new THREE.BoxGeometry(0.3, 0.3, 0.3), // Much larger
+            new THREE.BoxGeometry(0.3, 0.3, 0.3),
             new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: false, transparent: true, opacity: 0.8 })
           );
-          testCube.position.set(0, 0, 0.1); // Moved forward
+          testCube.position.set(0, 0, 0.5); // Much further forward
           anchor.group.add(testCube);
-          console.log("Added large test cube at origin");
+          console.log("Added large test cube FAR FORWARD");
           
-          // Add a bright sphere that's easy to see
+          // Add a bright sphere even further forward
           const testSphere = new THREE.Mesh(
             new THREE.SphereGeometry(0.2, 16, 16),
             new THREE.MeshBasicMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.5 })
           );
-          testSphere.position.set(0.3, 0.3, 0.2); // Offset position
+          testSphere.position.set(0, 0, 1.0); // Very far forward
           anchor.group.add(testSphere);
-          console.log("Added bright red sphere");
+          console.log("Added bright red sphere VERY FAR FORWARD");
           
-          // Add floating text that should be very visible
+          // Add floating text very far forward
           const canvas = document.createElement('canvas');
-          canvas.width = 256;
-          canvas.height = 128;
+          canvas.width = 512;
+          canvas.height = 256;
           const ctx = canvas.getContext('2d');
-          ctx.fillStyle = 'black';
-          ctx.fillRect(0, 0, 256, 128);
+          ctx.fillStyle = 'rgba(0,0,0,0.8)';
+          ctx.fillRect(0, 0, 512, 256);
           ctx.fillStyle = 'white';
-          ctx.font = 'bold 24px Arial';
-          ctx.fillText('AR WORKING!', 20, 60);
+          ctx.font = 'bold 48px Arial';
+          ctx.fillText('AR WORKING!', 50, 120);
+          ctx.fillStyle = 'red';
+          ctx.fillText('YOU SHOULD SEE THIS!', 20, 180);
           
           const textTexture = new THREE.CanvasTexture(canvas);
           const textMaterial = new THREE.MeshBasicMaterial({ 
@@ -601,24 +603,33 @@
             side: THREE.DoubleSide
           });
           const textPlane = new THREE.Mesh(
-            new THREE.PlaneGeometry(0.5, 0.25),
+            new THREE.PlaneGeometry(1.0, 0.5), // Bigger text
             textMaterial
           );
-          textPlane.position.set(0, 0.4, 0.1);
+          textPlane.position.set(0, 0, 0.8); // Very far forward
           anchor.group.add(textPlane);
-          console.log("Added text plane");
+          console.log("Added LARGE text plane FAR FORWARD");
+          
+          // Add a simple wireframe box around everything to show bounds
+          const wireframe = new THREE.Mesh(
+            new THREE.BoxGeometry(2, 2, 2),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true })
+          );
+          wireframe.position.set(0, 0, 0.5);
+          anchor.group.add(wireframe);
+          console.log("Added wireframe bounds box");
           
           if (watch) {
             console.log("Watch exists, current scale:", watch.scale);
-            // Make watch much bigger and brighter
-            watch.scale.set(0.5, 0.5, 0.5); // Start bigger
-            watch.position.set(0, 0, 0.2); // Move forward
+            // Make watch much bigger and move very far forward
+            watch.scale.set(0.5, 0.5, 0.5); 
+            watch.position.set(0, 0, 1.2); // Move even further forward than test elements
             
             // Add emissive material to make it glow
             watch.traverse(function(child) {
               if (child.isMesh && child.material) {
                 child.material.emissive = new THREE.Color(0x0066ff);
-                child.material.emissiveIntensity = 0.3;
+                child.material.emissiveIntensity = 0.5; // More glow
                 child.material.transparent = false;
                 child.material.opacity = 1;
               }
@@ -626,11 +637,11 @@
             
             function scaleAnimation() {
               const scale = watch.scale.x;
-              if (scale < 1.0) { // Scale to 1.0 instead of 0.12
-                watch.scale.setScalar(scale + 0.05);
+              if (scale < 2.0) { // Scale to 2.0 - very large
+                watch.scale.setScalar(scale + 0.1);
                 requestAnimationFrame(scaleAnimation);
               } else {
-                console.log("Watch scale animation complete - final scale:", watch.scale.x);
+                console.log("Watch scale animation complete - HUGE scale:", watch.scale.x);
               }
             }
             scaleAnimation();
