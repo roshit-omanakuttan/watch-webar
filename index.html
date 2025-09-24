@@ -358,17 +358,20 @@
         anchor.group.add(bg);
         console.log("✅ Background plane added");
 
-        // Cosmic Border Effect
-        const borderGeometry = new THREE.RingGeometry(0.55, 0.62, 32);
+        // Cosmic Border Effect - much more visible
+        const borderGeometry = new THREE.RingGeometry(0.4, 0.5, 32); // Bigger ring
         const borderMaterial = new THREE.MeshBasicMaterial({
           color: 0x00d4ff,
           transparent: true,
-          opacity: 0.6,
-          side: THREE.DoubleSide
+          opacity: 0.9, // More opaque
+          side: THREE.DoubleSide,
+          emissive: 0x00d4ff,
+          emissiveIntensity: 0.5 // Add glow
         });
         const cosmicBorder = new THREE.Mesh(borderGeometry, borderMaterial);
-        cosmicBorder.position.set(0, 0, 0.01);
+        cosmicBorder.position.set(0, 0, 0.15); // Move forward
         anchor.group.add(cosmicBorder);
+        console.log("✅ Bright cosmic border added");
 
         // Particle System
         const particleCount = 50;
@@ -562,25 +565,72 @@
           // Make sure all elements are visible and positioned correctly
           anchor.group.visible = true;
           
-          // Add a simple test cube to verify positioning
+          // Add multiple test elements at different positions and sizes to debug
           const testCube = new THREE.Mesh(
-            new THREE.BoxGeometry(0.1, 0.1, 0.1),
-            new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true })
+            new THREE.BoxGeometry(0.3, 0.3, 0.3), // Much larger
+            new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: false, transparent: true, opacity: 0.8 })
           );
-          testCube.position.set(0, 0, 0);
+          testCube.position.set(0, 0, 0.1); // Moved forward
           anchor.group.add(testCube);
-          console.log("Added test cube at origin");
+          console.log("Added large test cube at origin");
+          
+          // Add a bright sphere that's easy to see
+          const testSphere = new THREE.Mesh(
+            new THREE.SphereGeometry(0.2, 16, 16),
+            new THREE.MeshBasicMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.5 })
+          );
+          testSphere.position.set(0.3, 0.3, 0.2); // Offset position
+          anchor.group.add(testSphere);
+          console.log("Added bright red sphere");
+          
+          // Add floating text that should be very visible
+          const canvas = document.createElement('canvas');
+          canvas.width = 256;
+          canvas.height = 128;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = 'black';
+          ctx.fillRect(0, 0, 256, 128);
+          ctx.fillStyle = 'white';
+          ctx.font = 'bold 24px Arial';
+          ctx.fillText('AR WORKING!', 20, 60);
+          
+          const textTexture = new THREE.CanvasTexture(canvas);
+          const textMaterial = new THREE.MeshBasicMaterial({ 
+            map: textTexture, 
+            transparent: true,
+            side: THREE.DoubleSide
+          });
+          const textPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.5, 0.25),
+            textMaterial
+          );
+          textPlane.position.set(0, 0.4, 0.1);
+          anchor.group.add(textPlane);
+          console.log("Added text plane");
           
           if (watch) {
             console.log("Watch exists, current scale:", watch.scale);
-            watch.scale.set(0, 0, 0);
+            // Make watch much bigger and brighter
+            watch.scale.set(0.5, 0.5, 0.5); // Start bigger
+            watch.position.set(0, 0, 0.2); // Move forward
+            
+            // Add emissive material to make it glow
+            watch.traverse(function(child) {
+              if (child.isMesh && child.material) {
+                child.material.emissive = new THREE.Color(0x0066ff);
+                child.material.emissiveIntensity = 0.3;
+                child.material.transparent = false;
+                child.material.opacity = 1;
+              }
+            });
+            
             function scaleAnimation() {
               const scale = watch.scale.x;
-              if (scale < 0.12) {
-                watch.scale.setScalar(scale + 0.01);
+              if (scale < 1.0) { // Scale to 1.0 instead of 0.12
+                watch.scale.setScalar(scale + 0.05);
                 requestAnimationFrame(scaleAnimation);
               } else {
-                console.log("Watch scale animation complete");
+                console.log("Watch scale animation complete - final scale:", watch.scale.x);
               }
             }
             scaleAnimation();
