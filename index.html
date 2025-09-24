@@ -149,7 +149,34 @@
 <script type="module">
   import * as THREE from "https://unpkg.com/three@0.154.0/build/three.module.js";
   import { GLTFLoader } from "https://unpkg.com/three@0.154.0/examples/jsm/loaders/GLTFLoader.js";
-  import { MindARThree } from "https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-three.module.js";
+  // Try to import MindAR from multiple sources
+  let MindARThree;
+  
+  try {
+    const mindArModule = await import("https://unpkg.com/mind-ar@1.2.5/dist/mindar-image-three.prod.js");
+    MindARThree = mindArModule.MindARThree;
+    console.log("✅ MindAR loaded from unpkg");
+  } catch (e1) {
+    console.log("❌ Failed to load from unpkg:", e1.message);
+    try {
+      const mindArModule = await import("https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js");
+      MindARThree = mindArModule.MindARThree;
+      console.log("✅ MindAR loaded from jsdelivr");
+    } catch (e2) {
+      console.log("❌ Failed to load from jsdelivr:", e2.message);
+      try {
+        const mindArModule = await import("https://cdn.skypack.dev/mind-ar@1.2.5/dist/mindar-image-three.prod.js");
+        MindARThree = mindArModule.MindARThree;
+        console.log("✅ MindAR loaded from skypack");
+      } catch (e3) {
+        throw new Error("Could not load MindAR library from any CDN");
+      }
+    }
+  }
+  
+  if (!MindARThree) {
+    throw new Error("MindARThree not available");
+  }
 
   // UI Elements
   const container = document.querySelector("#ar");
