@@ -274,7 +274,7 @@
         // Create anchor
         const anchor = mindarThree.addAnchor(0);
         
-        // Background Video
+        // Background Video with fallback
         const video = document.createElement("video");
         video.src = "./cosmic.mp4";
         video.playsInline = true;
@@ -282,25 +282,81 @@
         video.muted = true;
         video.crossOrigin = "anonymous";
         
+        let videoLoaded = false;
+        video.onloadeddata = function() {
+          console.log("✅ Cosmic video loaded successfully");
+          videoLoaded = true;
+        };
+        
         video.onerror = function(e) {
-          console.warn("Video failed to load:", e);
+          console.warn("❌ Video failed to load, using fallback background:", e);
         };
 
-        const videoTex = new THREE.VideoTexture(video);
-        videoTex.minFilter = THREE.LinearFilter;
-        videoTex.magFilter = THREE.LinearFilter;
+        // Create background (video or fallback)
+        let bgMaterial;
+        if (videoLoaded) {
+          const videoTex = new THREE.VideoTexture(video);
+          videoTex.minFilter = THREE.LinearFilter;
+          videoTex.magFilter = THREE.LinearFilter;
+          bgMaterial = new THREE.MeshBasicMaterial({ 
+            map: videoTex, 
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.95
+          });
+        } else {
+          // Fallback: animated gradient background
+          const canvas = document.createElement('canvas');
+          canvas.width = 512;
+          canvas.height = 512;
+          const ctx = canvas.getContext('2d');
+          
+          // Create animated cosmic background
+          function updateCanvas() {
+            const time = Date.now() * 0.001;
+            
+            // Create gradient
+            const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+            gradient.addColorStop(0, `hsl(${(time * 50) % 360}, 70%, 30%)`);
+            gradient.addColorStop(0.5, `hsl(${(time * 30 + 120) % 360}, 60%, 20%)`);
+            gradient.addColorStop(1, `hsl(${(time * 20 + 240) % 360}, 50%, 10%)`);
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 512, 512);
+            
+            // Add stars
+            ctx.fillStyle = 'white';
+            for (let i = 0; i < 50; i++) {
+              const x = (Math.sin(time * 0.5 + i) * 0.5 + 0.5) * 512;
+              const y = (Math.cos(time * 0.3 + i * 2) * 0.5 + 0.5) * 512;
+              const size = Math.sin(time * 2 + i) * 2 + 2;
+              ctx.beginPath();
+              ctx.arc(x, y, size, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            
+            canvasTexture.needsUpdate = true;
+            requestAnimationFrame(updateCanvas);
+          }
+          
+          const canvasTexture = new THREE.CanvasTexture(canvas);
+          bgMaterial = new THREE.MeshBasicMaterial({
+            map: canvasTexture,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.9
+          });
+          
+          updateCanvas();
+          console.log("✅ Using animated fallback background");
+        }
         
-        // Main video background
+        // Main background plane
         const bgGeometry = new THREE.PlaneGeometry(1, 1.414);
-        const bgMaterial = new THREE.MeshBasicMaterial({ 
-          map: videoTex, 
-          side: THREE.DoubleSide,
-          transparent: true,
-          opacity: 0.95
-        });
         const bg = new THREE.Mesh(bgGeometry, bgMaterial);
         bg.position.set(0, 0, -0.02);
         anchor.group.add(bg);
+        console.log("✅ Background plane added");
 
         // Cosmic Border Effect
         const borderGeometry = new THREE.RingGeometry(0.55, 0.62, 32);
@@ -436,17 +492,18 @@
               watch.position.set(0, 0.1, 0.05);
               watch.rotation.set(0, Math.PI, 0);
               anchor.group.add(watch);
-              console.log("Watch model loaded successfully");
+              console.log("✅ Watch GLB model loaded successfully");
             }, 
             function(progress) {
               console.log("Loading watch:", Math.round((progress.loaded / progress.total) * 100) + "%");
             },
             function(error) {
-              console.log("GLB load failed, creating procedural watch:", error);
+              console.log("❌ GLB load failed, creating procedural watch:", error);
               watch = createProceduralWatch();
               watch.scale.set(1.2, 1.2, 1.2);
               watch.position.set(0, 0.1, 0.05);
               anchor.group.add(watch);
+              console.log("✅ Procedural watch created");
             }
           );
         } else {
@@ -454,7 +511,19 @@
           watch.scale.set(1.2, 1.2, 1.2);
           watch.position.set(0, 0.1, 0.05);
           anchor.group.add(watch);
+          console.log("✅ Procedural watch created (no GLTFLoader)");
         }
+        
+        // Also create watch immediately as backup
+        setTimeout(function() {
+          if (!watch) {
+            console.log("⚠️ Creating backup watch after timeout");
+            watch = createProceduralWatch();
+            watch.scale.set(1.2, 1.2, 1.2);
+            watch.position.set(0, 0.1, 0.05);
+            anchor.group.add(watch);
+          }
+        }, 2000);
 
         // Cosmic Energy Rings
         for (let i = 0; i < 3; i++) {
@@ -479,6 +548,9 @@
         // Target Detection Events
         anchor.onTargetFound = function() {
           console.log("🎯 Target found!");
+          console.log("Anchor position:", anchor.group.position);
+          console.log("Anchor visible:", anchor.group.visible);
+          
           video.play().catch(function(err) {
             console.log("Video autoplay failed:", err);
           });
@@ -487,16 +559,33 @@
           arStatus.className = "ar-status status-found";
           instructions.classList.add("hidden");
           
+          // Make sure all elements are visible and positioned correctly
+          anchor.group.visible = true;
+          
+          // Add a simple test cube to verify positioning
+          const testCube = new THREE.Mesh(
+            new THREE.BoxGeometry(0.1, 0.1, 0.1),
+            new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true })
+          );
+          testCube.position.set(0, 0, 0);
+          anchor.group.add(testCube);
+          console.log("Added test cube at origin");
+          
           if (watch) {
+            console.log("Watch exists, current scale:", watch.scale);
             watch.scale.set(0, 0, 0);
             function scaleAnimation() {
               const scale = watch.scale.x;
               if (scale < 0.12) {
                 watch.scale.setScalar(scale + 0.01);
                 requestAnimationFrame(scaleAnimation);
+              } else {
+                console.log("Watch scale animation complete");
               }
             }
             scaleAnimation();
+          } else {
+            console.log("Watch not loaded yet");
           }
         };
 
