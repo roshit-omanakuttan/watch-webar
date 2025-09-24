@@ -554,6 +554,26 @@
           console.log("Anchor position:", anchor.group.position);
           console.log("Anchor visible:", anchor.group.visible);
           
+          // Add a simple HTML overlay test to verify visibility
+          const overlay = document.createElement('div');
+          overlay.style.position = 'absolute';
+          overlay.style.top = '50%';
+          overlay.style.left = '50%';
+          overlay.style.transform = 'translate(-50%, -50%)';
+          overlay.style.background = 'rgba(255, 0, 0, 0.8)';
+          overlay.style.color = 'white';
+          overlay.style.padding = '20px';
+          overlay.style.fontSize = '24px';
+          overlay.style.fontWeight = 'bold';
+          overlay.style.zIndex = '9999';
+          overlay.style.border = '3px solid yellow';
+          overlay.textContent = 'AR TARGET FOUND! 3D ELEMENTS SHOULD BE VISIBLE';
+          document.body.appendChild(overlay);
+          
+          setTimeout(function() {
+            document.body.removeChild(overlay);
+          }, 3000);
+          
           video.play().catch(function(err) {
             console.log("Video autoplay failed:", err);
           });
@@ -564,6 +584,12 @@
           
           // Make sure all elements are visible and positioned correctly
           anchor.group.visible = true;
+          
+          // Force renderer to update
+          if (renderer) {
+            renderer.render(scene, camera);
+            console.log("Forced renderer update");
+          }
           
           // Add multiple test elements at MUCH more forward positions
           const testCube = new THREE.Mesh(
