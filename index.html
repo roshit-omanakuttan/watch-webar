@@ -592,7 +592,7 @@
           }, 3000);
           
           video.play().catch(function(err) {
-            console.log("Video autoplay failed:", err);
+            console.log("Background video autoplay failed:", err);
           });
           
           arStatus.textContent = "🌟 Cosmic AR Active";
@@ -753,23 +753,23 @@
         await Promise.race([startPromise, timeoutPromise]);
         
         // Verify video feed is working after start
-        const video = mindarThree.video;
-        if (video) {
-          console.log("✅ Video feed available:", video.videoWidth, "x", video.videoHeight);
+        const cameraVideo = mindarThree.video;
+        if (cameraVideo) {
+          console.log("✅ Video feed available:", cameraVideo.videoWidth, "x", cameraVideo.videoHeight);
           
           // Force video to be visible in the DOM
-          video.style.display = 'block';
-          video.style.position = 'absolute';
-          video.style.top = '0';
-          video.style.left = '0';
-          video.style.width = '100%';
-          video.style.height = '100%';
-          video.style.objectFit = 'cover';
-          video.style.zIndex = '1';
+          cameraVideo.style.display = 'block';
+          cameraVideo.style.position = 'absolute';
+          cameraVideo.style.top = '0';
+          cameraVideo.style.left = '0';
+          cameraVideo.style.width = '100%';
+          cameraVideo.style.height = '100%';
+          cameraVideo.style.objectFit = 'cover';
+          cameraVideo.style.zIndex = '1';
           
           // Ensure video is playing
-          if (video.paused) {
-            video.play().catch(function(e) {
+          if (cameraVideo.paused) {
+            cameraVideo.play().catch(function(e) {
               console.log("Video play failed:", e);
             });
           }
@@ -813,7 +813,7 @@
         tick();
         
         console.log("✅ MindAR initialized successfully!");
-        console.log("Video element:", !!video, "Renderer:", !!renderer, "Scene children:", scene.children.length);
+        console.log("Video element:", !!cameraVideo, "Renderer:", !!renderer, "Scene children:", scene.children.length);
         
       } catch (error) {
         console.error("❌ Failed to initialize MindAR:", error);
