@@ -3,177 +3,156 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cosmic Newspaper WebAR - MindAR</title>
+  <title>Cosmic Newspaper WebAR</title>
   <style>
     html, body {
       margin: 0;
       height: 100%;
       overflow: hidden;
-      background: #000;
-      font-family: 'Arial', sans-serif;
+      background: #0b0b10;
+      color: #eaeaf5;
+      font-family: Arial, sans-serif;
     }
     
-    #ar-container {
-      width: 100%;
-      height: 100%;
-      position: relative;
+    #ar {
+      position: fixed;
+      inset: 0;
+      touch-action: none;
     }
     
-    .ar-status {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: rgba(0, 0, 0, 0.8);
-      color: white;
-      padding: 10px 15px;
+    #status {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #121222;
+      border: 1px solid #2a2a44;
       border-radius: 10px;
-      z-index: 100;
-      font-size: 12px;
+      padding: 8px 12px;
+      font-size: 14px;
     }
     
-    .status-found {
-      background: rgba(0, 212, 255, 0.8);
-      color: white;
-    }
-    
-    .instructions {
-      position: absolute;
+    #instructions {
+      position: fixed;
       bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(18, 18, 34, 0.9);
       color: white;
       padding: 15px 20px;
       border-radius: 15px;
-      z-index: 100;
       text-align: center;
       max-width: 90%;
+      border: 1px solid #2a2a44;
     }
     
     .hidden {
       opacity: 0;
       transition: opacity 0.5s;
     }
-    
-    .test-overlay {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(255, 0, 0, 0.9);
-      color: white;
-      padding: 20px;
-      border: 3px solid yellow;
-      font-size: 20px;
-      font-weight: bold;
-      z-index: 999;
-      text-align: center;
-      border-radius: 10px;
-    }
   </style>
+  <link rel="icon" href="data:,"/>
 </head>
 <body>
-  <!-- Load libraries with working CDN links -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.5/dist/mindar-image-three.prod.js"></script>
+  <!-- Load local MindAR file (you'll need to download this) -->
+  <script src="./mindar-image-three.prod.js"></script>
 
-  <div id="ar-container"></div>
-  
-  <!-- AR Status -->
-  <div class="ar-status" id="arStatus">📱 Point camera at newspaper</div>
-  
-  <!-- Instructions -->
-  <div class="instructions" id="instructions">
-    <strong>🗞️ Cosmic Newspaper AR</strong><br>
+  <div id="ar"></div>
+  <div id="status">Loading...</div>
+  <div id="instructions">
+    <strong>Cosmic Newspaper AR</strong><br>
     Point your camera at the newspaper target<br>
-    <small>Camera should be visible below</small>
+    <small>Make sure camera permission is granted</small>
   </div>
 
 <script>
-// Wait for all libraries to load
-function waitForLibraries() {
-  return new Promise((resolve, reject) => {
-    let attempts = 0;
-    const maxAttempts = 100; // 10 seconds
-    
-    function checkLibraries() {
-      attempts++;
-      console.log(`Checking libraries (attempt ${attempts}): THREE=${typeof THREE}, MINDAR=${typeof MINDAR}`);
-      
-      if (typeof THREE !== 'undefined' && typeof MINDAR !== 'undefined') {
-        console.log('Libraries loaded successfully!');
-        resolve();
-      } else if (attempts >= maxAttempts) {
-        reject(new Error('Libraries failed to load after 10 seconds'));
-      } else {
-        setTimeout(checkLibraries, 100);
-      }
+const status = (text) => {
+  document.getElementById('status').textContent = text;
+};
+
+async function init() {
+  try {
+    // Check if MindAR loaded properly
+    if (!window.MINDAR || !window.MINDAR.IMAGE) {
+      status('MindAR failed to load');
+      console.error('MindAR not available. Make sure mindar-image-three.prod.js is in your directory');
+      return;
     }
     
-    checkLibraries();
-  });
-}
-
-document.addEventListener('DOMContentLoaded', async function() {
-  console.log('Starting simplified AR experience...');
-  
-  const container = document.getElementById('ar-container');
-  const arStatus = document.getElementById('arStatus');
-  const instructions = document.getElementById('instructions');
-  
-  try {
-    // Wait for libraries to load
-    await waitForLibraries();
+    // Use MindAR's internal THREE.js
+    const THREE_AR = window.MINDAR.IMAGE.THREE;
+    console.log('Using MindAR THREE.js version');
     
-    // Initialize MindAR with simpler configuration
-    const mindarThree = new MINDAR.IMAGE.MindARThree({
-      container: container,
+    // Initialize MindAR
+    const mindarThree = new window.MINDAR.IMAGE.MindARThree({
+      container: document.querySelector('#ar'),
       imageTargetSrc: './targets.mind'
     });
-
+    
     const { renderer, scene, camera } = mindarThree;
     
-    console.log('✅ MindAR initialized');
-    
-    // Add basic lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
-    
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    // Add lighting
+    scene.add(new THREE_AR.HemisphereLight(0xffffff, 0x222233, 1.0));
+    const directionalLight = new THREE_AR.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(0, 1, 1);
     scene.add(directionalLight);
     
-    // Create anchor
     const anchor = mindarThree.addAnchor(0);
-    console.log('✅ Anchor created');
     
-    // Create simple, highly visible test objects
-    function createTestObjects() {
-      const group = new THREE.Group();
+    // Background video setup (like your working example)
+    const video = document.createElement('video');
+    video.src = './cosmic.mp4';
+    video.playsInline = true;
+    video.muted = true;
+    video.loop = true;
+    
+    const videoTex = new THREE_AR.VideoTexture(video);
+    const planeMat = new THREE_AR.MeshBasicMaterial({
+      map: videoTex,
+      side: THREE_AR.DoubleSide,
+      depthWrite: false,
+    });
+    planeMat.polygonOffset = true;
+    planeMat.polygonOffsetFactor = 1;
+    planeMat.polygonOffsetUnits = 1;
+    
+    const videoPlane = new THREE_AR.Mesh(
+      new THREE_AR.PlaneGeometry(1.0, 1.414),
+      planeMat
+    );
+    videoPlane.position.set(0, 0, -0.03);
+    videoPlane.renderOrder = 0;
+    videoPlane.visible = false;
+    anchor.group.add(videoPlane);
+    
+    // Create cosmic effects using MindAR's THREE
+    function createCosmicEffects() {
+      const group = new THREE_AR.Group();
       
-      // Large bright cube
-      const cubeGeometry = new THREE.BoxGeometry(0.4, 0.4, 0.4);
-      const cubeMaterial = new THREE.MeshBasicMaterial({ 
+      // Bright test cube
+      const cubeGeometry = new THREE_AR.BoxGeometry(0.3, 0.3, 0.3);
+      const cubeMaterial = new THREE_AR.MeshBasicMaterial({ 
         color: 0x00ff00,
         transparent: true,
         opacity: 0.8
       });
-      const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-      cube.position.set(0, 0, 0.2);
+      const cube = new THREE_AR.Mesh(cubeGeometry, cubeMaterial);
+      cube.position.set(0, 0, 0.1);
+      cube.renderOrder = 2;
       group.add(cube);
       
-      // Bright red sphere
-      const sphereGeometry = new THREE.SphereGeometry(0.2, 16, 16);
-      const sphereMaterial = new THREE.MeshBasicMaterial({ 
+      // Glowing red sphere
+      const sphereGeometry = new THREE_AR.SphereGeometry(0.15, 16, 16);
+      const sphereMaterial = new THREE_AR.MeshBasicMaterial({ 
         color: 0xff0000,
-        emissive: 0xff0000,
-        emissiveIntensity: 0.3
+        transparent: true,
+        opacity: 0.9
       });
-      const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-      sphere.position.set(0.3, 0.3, 0.3);
+      const sphere = new THREE_AR.Mesh(sphereGeometry, sphereMaterial);
+      sphere.position.set(0.4, 0.3, 0.15);
+      sphere.renderOrder = 2;
       group.add(sphere);
       
-      // Large text plane
+      // Text plane
       const canvas = document.createElement('canvas');
       canvas.width = 512;
       canvas.height = 256;
@@ -182,54 +161,91 @@ document.addEventListener('DOMContentLoaded', async function() {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
       ctx.fillRect(0, 0, 512, 256);
       ctx.fillStyle = 'white';
-      ctx.font = 'bold 48px Arial';
-      ctx.fillText('AR WORKING!', 50, 120);
-      ctx.fillStyle = 'cyan';
-      ctx.fillText('3D OBJECTS!', 80, 180);
+      ctx.font = 'bold 40px Arial';
+      ctx.fillText('COSMIC AR!', 80, 120);
+      ctx.fillStyle = '#00d4ff';
+      ctx.fillText('WORKING!', 120, 180);
       
-      const textTexture = new THREE.CanvasTexture(canvas);
-      const textMaterial = new THREE.MeshBasicMaterial({
+      const textTexture = new THREE_AR.CanvasTexture(canvas);
+      const textMaterial = new THREE_AR.MeshBasicMaterial({
         map: textTexture,
-        transparent: true
+        transparent: true,
+        depthWrite: false
       });
-      const textPlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(1, 0.5),
+      const textPlane = new THREE_AR.Mesh(
+        new THREE_AR.PlaneGeometry(0.8, 0.4),
         textMaterial
       );
       textPlane.position.set(0, 0.5, 0.2);
+      textPlane.renderOrder = 3;
       group.add(textPlane);
       
-      // Wireframe outline for visibility
-      const wireGeometry = new THREE.BoxGeometry(1.5, 1.5, 0.5);
-      const wireMaterial = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
+      // Wireframe for visibility
+      const wireGeometry = new THREE_AR.BoxGeometry(1.2, 1.2, 0.4);
+      const wireMaterial = new THREE_AR.MeshBasicMaterial({
+        color: 0x00d4ff,
         wireframe: true,
         transparent: true,
         opacity: 0.6
       });
-      const wireframe = new THREE.Mesh(wireGeometry, wireMaterial);
-      wireframe.position.set(0, 0, 0.2);
+      const wireframe = new THREE_AR.Mesh(wireGeometry, wireMaterial);
+      wireframe.position.set(0, 0, 0.15);
+      wireframe.renderOrder = 1;
       group.add(wireframe);
       
       return group;
     }
     
-    // Add test objects to anchor
-    const testGroup = createTestObjects();
-    anchor.group.add(testGroup);
-    console.log('✅ Test objects added to anchor');
+    const cosmicGroup = createCosmicEffects();
+    cosmicGroup.visible = false;
+    anchor.group.add(cosmicGroup);
+    
+    // Animation
+    let animationFrame = 0;
+    function animate() {
+      animationFrame++;
+      
+      if (cosmicGroup.visible) {
+        cosmicGroup.children.forEach((child, index) => {
+          if (child.geometry) {
+            child.rotation.y = Date.now() * 0.001 * (index + 1);
+          }
+        });
+      }
+      
+      requestAnimationFrame(animate);
+    }
+    animate();
     
     // Target detection events
-    anchor.onTargetFound = () => {
-      console.log('🎯 TARGET FOUND!');
+    anchor.onTargetFound = async () => {
+      status('Cosmic AR Active');
+      console.log('Target found!');
+      
+      // Show video background
+      videoPlane.visible = true;
+      cosmicGroup.visible = true;
       
       // Show HTML overlay
       const overlay = document.createElement('div');
-      overlay.className = 'test-overlay';
+      overlay.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 212, 255, 0.9);
+        color: white;
+        padding: 20px;
+        border-radius: 15px;
+        text-align: center;
+        z-index: 1000;
+        font-size: 18px;
+        font-weight: bold;
+        border: 2px solid white;
+      `;
       overlay.innerHTML = `
-        <div>🎯 AR TARGET DETECTED!</div>
-        <div>3D Elements Should Be Visible</div>
-        <div style="font-size: 14px; margin-top: 10px;">Green cube • Red sphere • White text</div>
+        AR TARGET DETECTED!<br>
+        <span style="font-size: 14px;">3D Cosmic Elements Active</span>
       `;
       document.body.appendChild(overlay);
       
@@ -237,14 +253,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (overlay.parentNode) {
           document.body.removeChild(overlay);
         }
-      }, 4000);
+      }, 3000);
       
-      arStatus.textContent = '🌟 Cosmic AR Active';
-      arStatus.className = 'ar-status status-found';
-      instructions.classList.add('hidden');
+      document.getElementById('instructions').classList.add('hidden');
       
-      // Animate test objects
-      testGroup.children.forEach((child, index) => {
+      // Start video
+      try {
+        await video.play();
+        console.log('Video playing');
+      } catch (e) {
+        console.warn('Video autoplay failed:', e);
+      }
+      
+      // Animate elements appearing
+      cosmicGroup.children.forEach((child, index) => {
         child.scale.set(0, 0, 0);
         
         function scaleUp() {
@@ -258,45 +280,54 @@ document.addEventListener('DOMContentLoaded', async function() {
         setTimeout(scaleUp, index * 200);
       });
     };
-
+    
     anchor.onTargetLost = () => {
-      console.log('📱 Target lost');
-      arStatus.textContent = '📱 Point camera at newspaper';
-      arStatus.className = 'ar-status';
-      instructions.classList.remove('hidden');
+      status('Searching for target...');
+      console.log('Target lost');
+      videoPlane.visible = false;
+      cosmicGroup.visible = false;
+      video.pause();
+      document.getElementById('instructions').classList.remove('hidden');
     };
     
-    // Animation loop
-    let animationFrame = 0;
-    function animate() {
-      animationFrame++;
-      
-      // Rotate objects for visibility
-      testGroup.children.forEach((child, index) => {
-        if (child.geometry) {
-          child.rotation.y = Date.now() * 0.001 * (index + 1);
-        }
-      });
-      
-      requestAnimationFrame(animate);
-    }
-    animate();
-    
     // Start MindAR
-    console.log('⏳ Starting MindAR...');
+    status('Starting camera...');
     await mindarThree.start();
     
-    console.log('✅ MindAR started successfully!');
-    console.log('📹 Camera should now be visible');
-    console.log('🎯 Point at your newspaper target to see 3D objects');
+    status('Searching for target...');
+    console.log('MindAR started successfully! Point at your newspaper target.');
     
     // Start render loop
     renderer.setAnimationLoop(() => {
       renderer.render(scene, camera);
     });
     
+    // Load watch model if available
+    if (window.THREE) {
+      // GLTFLoader will be available globally after MindAR loads
+      const loader = new THREE.GLTFLoader();
+      loader.load('./watch.glb', (gltf) => {
+        const model = gltf.scene;
+        model.scale.set(0.5, 0.5, 0.5);
+        model.position.set(-0.3, -0.2, 0.1);
+        model.renderOrder = 2;
+        cosmicGroup.add(model);
+        console.log('Watch model loaded');
+      }, undefined, (err) => {
+        console.log('Watch model not found, using procedural elements only');
+      });
+    }
+    
   } catch (error) {
-    console.error('❌ AR initialization failed:', error);
+    console.error('AR initialization failed:', error);
+    status('AR Failed');
+    
+    let errorMessage = 'Unknown error';
+    if (error.name === 'NotAllowedError') {
+      errorMessage = 'Camera permission denied. Please allow camera access and refresh.';
+    } else if (error.message.includes('targets.mind')) {
+      errorMessage = 'Target file not found. Make sure targets.mind is in your directory.';
+    }
     
     const errorDiv = document.createElement('div');
     errorDiv.style.cssText = `
@@ -306,15 +337,15 @@ document.addEventListener('DOMContentLoaded', async function() {
       transform: translate(-50%, -50%);
       background: rgba(255, 0, 0, 0.9);
       color: white;
-      padding: 20px;
-      border-radius: 10px;
+      padding: 25px;
+      border-radius: 15px;
       text-align: center;
       z-index: 1000;
-      font-size: 16px;
+      max-width: 90%;
     `;
     errorDiv.innerHTML = `
-      <h3>AR Failed to Initialize</h3>
-      <p>${error.message}</p>
+      <h3>AR Error</h3>
+      <p>${errorMessage}</p>
       <button onclick="location.reload()" style="
         background: white;
         color: black;
@@ -327,7 +358,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     `;
     document.body.appendChild(errorDiv);
   }
-});
+}
+
+// Wait for page to load, then initialize
+window.addEventListener('load', init);
 </script>
 </body>
 </html>
